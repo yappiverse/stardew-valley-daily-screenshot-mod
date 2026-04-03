@@ -769,8 +769,32 @@ namespace DailyScreenshot
 
                 Directory.CreateDirectory(Path.Combine(DefaultSSdirectory.FullName, ssDirectory));
             }
+
+            // If a target map is specified, temporarily switch to that location
+            // so takeMapScreenshot renders the right map (it uses Game1.currentLocation).
+            GameLocation savedLocation = null;
+            if (!string.IsNullOrEmpty(rule.ScreenshotMapName))
+            {
+                GameLocation targetLoc = Game1.getLocationFromName(rule.ScreenshotMapName);
+                if (targetLoc != null && targetLoc != Game1.currentLocation)
+                {
+                    savedLocation = Game1.currentLocation;
+                    Game1.currentLocation = targetLoc;
+                    MTrace($"Temporarily switched to location \"{rule.ScreenshotMapName}\" for screenshot");
+                }
+                else if (targetLoc == null)
+                {
+                    MWarn($"ScreenshotMapName \"{rule.ScreenshotMapName}\" not found; using current location");
+                }
+            }
+
             string mapScreenshotPath = Game1.game1.takeMapScreenshot(rule.ZoomLevel, ssPath, () => {
-                    //Nothing here. Just added Action as empty lambda to provide all now required parameters.
+                    // Restore the player's location after the screenshot is captured
+                    if (savedLocation != null)
+                    {
+                        Game1.currentLocation = savedLocation;
+                        MTrace($"Restored location after screenshot");
+                    }
                 }
             );
             FileInfo mapScreenshot = new FileInfo(Path.Combine(DefaultSSdirectory.FullName, mapScreenshotPath));
