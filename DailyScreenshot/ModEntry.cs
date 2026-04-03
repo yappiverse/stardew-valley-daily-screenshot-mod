@@ -812,66 +812,80 @@ namespace DailyScreenshot
                 Game1.flashAlpha = 1f;
             }
 
+            // Create directories BEFORE swapping location so any IO exception
+            // cannot leave currentLocation in a broken state.
             if (null != ssPath)
             {
                 MTrace($"ssPath = \"{ssPath}\"");
                 string ssDirectory = Path.GetDirectoryName(ssPath);
-
                 Directory.CreateDirectory(Path.Combine(DefaultSSdirectory.FullName, ssDirectory));
             }
 
             // If a target map is specified, temporarily switch to that location
             // so takeMapScreenshot renders the right map (it uses Game1.currentLocation).
+            // Wrapped in try-finally so currentLocation is always restored even if
+            // takeMapScreenshot throws.
             GameLocation savedLocation = null;
-            if (!string.IsNullOrEmpty(rule.ScreenshotMapName))
+            try
             {
-                GameLocation targetLoc = Game1.getLocationFromName(rule.ScreenshotMapName);
-                if (targetLoc != null && targetLoc != Game1.currentLocation)
+                if (!string.IsNullOrEmpty(rule.ScreenshotMapName))
                 {
-                    savedLocation = Game1.currentLocation;
-                    Game1.currentLocation = targetLoc;
-                    MTrace($"Temporarily switched to location \"{rule.ScreenshotMapName}\" for screenshot");
+                    GameLocation targetLoc = Game1.getLocationFromName(rule.ScreenshotMapName);
+                    if (targetLoc != null && targetLoc != Game1.currentLocation)
+                    {
+                        savedLocation = Game1.currentLocation;
+                        Game1.currentLocation = targetLoc;
+                        MTrace($"Temporarily switched to location \"{rule.ScreenshotMapName}\" for screenshot");
+                    }
+                    else if (targetLoc == null)
+                    {
+                        MWarn($"ScreenshotMapName \"{rule.ScreenshotMapName}\" not found; using current location");
+                    }
                 }
-                else if (targetLoc == null)
+
+                string mapScreenshotPath = Game1.game1.takeMapScreenshot(rule.ZoomLevel, ssPath, () =>
                 {
-                    MWarn($"ScreenshotMapName \"{rule.ScreenshotMapName}\" not found; using current location");
+                    // Restore the player's location after the screenshot is captured
+                    if (savedLocation != null)
+                    {
+                        Game1.currentLocation = savedLocation;
+                        MTrace($"Restored location after screenshot");
+                    }
+                }
+                );
+                FileInfo mapScreenshot = new FileInfo(Path.Combine(DefaultSSdirectory.FullName, mapScreenshotPath));
+                MTrace($"Snapshot saved to {mapScreenshot.FullName}");
+
+                if (m_config.AuditoryEffects)
+                {
+                    Game1.playSound("cameraNoise");
+                }
+
+                if (ModConfig.DEFAULT_STRING != rule.Directory)
+                {
+                    EnqueueAction(() =>
+                        {
+                            MoveScreenshotToCorrectFolder(mapScreenshot, new FileInfo(Path.Combine(rule.Directory, mapScreenshotPath)));
+                            CleanUpEmptyDirectories(mapScreenshot.Directory);
+                        }, ref m_mvActions
+                        );
                 }
             }
-
-            string mapScreenshotPath = Game1.game1.takeMapScreenshot(rule.ZoomLevel, ssPath, () =>
+            finally
             {
-                // Restore the player's location after the screenshot is captured
-                if (savedLocation != null)
+                // Safety net: if the callback never fired (e.g. takeMapScreenshot threw),
+                // restore currentLocation here so the game state is never left broken.
+                if (savedLocation != null && Game1.currentLocation != savedLocation)
                 {
                     Game1.currentLocation = savedLocation;
-                    MTrace($"Restored location after screenshot");
+                    MTrace("Restored location in finally block");
                 }
             }
-            );
-            FileInfo mapScreenshot = new FileInfo(Path.Combine(DefaultSSdirectory.FullName, mapScreenshotPath));
-            MTrace($"Snapshot saved to {mapScreenshot.FullName}");
-
-            if (m_config.AuditoryEffects)
-            {
-                Game1.playSound("cameraNoise");
-            }
-
-            if (ModConfig.DEFAULT_STRING != rule.Directory)
-            {
-                EnqueueAction(() =>
-                    {
-                        MoveScreenshotToCorrectFolder(mapScreenshot, new FileInfo(Path.Combine(rule.Directory, mapScreenshotPath)));
-                        CleanUpEmptyDirectories(mapScreenshot.Directory);
-                    }, ref m_mvActions
-                    );
-            }
         }
-
-        /// <summary>
         /// Display the HUD message
         /// </summary>
         /// <param name="rule">Rule to use for HUD message</param>
-        // Adding space based on user feedback
+            // Adding space based on user feedback
         private void DisplayRuleHUD(ModRule rule)
         {
             if (m_config.ScreenshotNotifications)

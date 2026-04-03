@@ -116,12 +116,23 @@ namespace DailyScreenshot
             if (string.IsNullOrEmpty(value)) return value;
             char[] invalid = Path.GetInvalidFileNameChars();
             var sb = new StringBuilder(value.Length);
+            bool lastWasUnderscore = false;
             foreach (char c in value)
             {
                 if (Array.IndexOf(invalid, c) >= 0 || c > 127)
-                    sb.Append('_');
+                {
+                    // Collapse consecutive underscores (e.g. surrogate-pair emoji -> single _)
+                    if (!lastWasUnderscore)
+                    {
+                        sb.Append('_');
+                        lastWasUnderscore = true;
+                    }
+                }
                 else
+                {
                     sb.Append(c);
+                    lastWasUnderscore = false;
+                }
             }
             return sb.ToString();
         }
