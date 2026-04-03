@@ -107,6 +107,26 @@ namespace DailyScreenshot
         }
 
         /// <summary>
+        /// Replaces characters that are invalid in file/directory names with underscores.
+        /// Also replaces any character outside the printable ASCII range to avoid
+        /// OS path encoding issues with emoji or non-Latin characters in farm/player names.
+        /// </summary>
+        private static string SanitizePathComponent(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return value;
+            char[] invalid = Path.GetInvalidFileNameChars();
+            var sb = new StringBuilder(value.Length);
+            foreach (char c in value)
+            {
+                if (Array.IndexOf(invalid, c) >= 0 || c > 127)
+                    sb.Append('_');
+                else
+                    sb.Append(c);
+            }
+            return sb.ToString();
+        }
+
+        /// <summary>
         /// What filename to use
         /// Note: Enum value, validation not needed
         /// </summary>
@@ -130,7 +150,7 @@ namespace DailyScreenshot
             if (AddFilenamePart(FileNameFlags.FarmName,
                                 sep,
                                 ref sb,
-                                Game1.player.farmName.Value + "-Farm-Screenshots"))
+                                SanitizePathComponent(Game1.player.farmName.Value) + "-Farm-Screenshots"))
                 sep = '-';
             if (AddFilenamePart(FileNameFlags.GameID,
                                 sep,
@@ -156,7 +176,7 @@ namespace DailyScreenshot
             if (AddFilenamePart(FileNameFlags.PlayerName,
                                 sep,
                                 ref sb,
-                                Game1.player.Name))
+                                SanitizePathComponent(Game1.player.Name)))
                 sep = '-';
             if (AddFilenamePart(FileNameFlags.Date,
                                 sep,
