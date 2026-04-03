@@ -46,9 +46,14 @@ namespace DailyScreenshot
         private const int MINUTES_TO_ADD_FOR_NEXT_HOUR = 40;
 
         /// <summary>
-        /// True if this rule has triggered automatically
+        /// True if this rule has triggered automatically (only used when IntervalTime == 0)
         /// </summary>
         private bool m_triggered = false;
+
+        /// <summary>
+        /// Next game time at which an interval-based rule should trigger
+        /// </summary>
+        private int m_nextTriggerTime = ModConfig.DEFAULT_START_TIME;
 
         #region Dates 
         /// <summary>
@@ -233,6 +238,18 @@ namespace DailyScreenshot
         internal bool ValidateUserInput(string ruleName)
         {
             bool modified = false;
+            if (IntervalTime != 0)
+            {
+                int interval = Math.Max(IntervalTime, MIN_TIME_INTERVAL);
+                interval = interval - (interval % MIN_TIME_INTERVAL);
+                if (interval != IntervalTime)
+                {
+                    modified = true;
+                    IntervalTime = interval;
+                    MWarn($"Updating IntervalTime for rule \"{ruleName}\" to be \"{IntervalTime}\"");
+                }
+            }
+            m_nextTriggerTime = StartTime;
             int startTime = SetLimits(StartTime);
             int endTime = SetLimits(EndTime);
             if (StartTime != startTime || EndTime != endTime || startTime > endTime)
@@ -326,6 +343,14 @@ namespace DailyScreenshot
         #endregion
 
         /// <summary>
+        /// How often to take screenshots in game time units (0 = once per day).
+        /// 100 = every 1 game hour, 200 = every 2 game hours, 600 = every 6 game hours.
+        /// Note: must validate
+        /// </summary>
+        /// <value>Multiple of 10 between 10 and 2000, or 0 to disable</value>
+        public int IntervalTime { get; set; } = 0;
+
+        /// <summary>
         /// Start of the time frame to take screenshot
         /// Note: must validate
         /// </summary>
@@ -356,6 +381,9 @@ namespace DailyScreenshot
         /// <returns>True if the trigger can still fire today</returns>
         internal bool CanTriggerToday()
         {
+            if (IntervalTime > 0)
+                return DateFlags.Day_None != (GetDate() & Days) &&
+                    Game1.timeOfDay <= EndTime;
             return m_triggered == false &&
                 DateFlags.Day_None != (GetDate() & Days) &&
                 Game1.timeOfDay <= EndTime;
@@ -377,6 +405,8 @@ namespace DailyScreenshot
         /// <returns>True if caller should be waiting on the time event</returns>
         internal bool IsWaitingOnTime()
         {
+            if (IntervalTime > 0)
+                return Game1.timeOfDay < m_nextTriggerTime && CanTriggerToday();
             return Game1.timeOfDay < StartTime &&
                 CanTriggerToday();
         }
@@ -399,6 +429,7 @@ namespace DailyScreenshot
             MTrace("Trigger reset");
 #endif
             m_triggered = false;
+            m_nextTriggerTime = StartTime;
         }
 
         /// <summary>
@@ -411,7 +442,7 @@ namespace DailyScreenshot
 #if DEBUG
             MTrace($"m_triggered = {m_triggered}");
 #endif
-            if (m_triggered)
+            if (IntervalTime <= 0 && m_triggered)
                 return false;
             DateFlags current_date = GetDate();
             WeatherFlags current_weather = GetWeather();
@@ -425,7 +456,8 @@ namespace DailyScreenshot
                 // Trigger will never be valid for this day,
                 // wait for the next to reset.
                 // Some mods can mess with weather
-                m_triggered = true;
+                if (IntervalTime <= 0)
+                    m_triggered = true;
                 return false;
             }
 
@@ -433,14 +465,23 @@ namespace DailyScreenshot
             if (!CheckTime(Game1.timeOfDay))
                 return false;
 
+            // For interval-based rules, check if enough time has passed
+            if (IntervalTime > 0 && Game1.timeOfDay < m_nextTriggerTime)
+                return false;
+
             // Keys is not a flags enum, only one can be set at a time
             if (Key != key)
                 return false;
 
-
-            // If it is button based, allow another screenshot after this one for this day
-            if (SButton.None == key)
+            if (IntervalTime > 0)
+            {
+                m_nextTriggerTime = Game1.timeOfDay + IntervalTime;
+            }
+            else if (SButton.None == key)
+            {
+                // If it is button based, allow another screenshot after this one for this day
                 m_triggered = true;
+            }
 
             return true;
         }
