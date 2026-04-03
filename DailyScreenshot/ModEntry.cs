@@ -507,15 +507,64 @@ namespace DailyScreenshot
                     interval: 10
                 );
 
+                gmcmApi.AddNumberOption(
+                    mod: ModManifest,
+                    getValue: () => m_config.SnapshotRules[0].Trigger.IntervalTime,
+                    setValue: (int val) => m_config.SnapshotRules[0].Trigger.IntervalTime = val,
+                    name: I18n.Config_MainSettings_IntervalTime_Title,
+                    tooltip: I18n.Config_MainSettings_IntervalTime_Tooltip,
+                    min: 0,
+                    max: 2000,
+                    interval: 10,
+                    formatValue: (val) => val == 0
+                        ? Helper.Translation.Get("Config.MainSettings.IntervalTime.OncePerDay")
+                        : val.ToString()
+                );
+
+                string[] screenshotMapNames = new[]
+                {
+                    "", "Farm", "FarmHouse", "Greenhouse", "Beach", "FarmCave",
+                    "Cellar", "Desert", "ArchaeologyHouse", "CommunityCenter",
+                    "Town", "Mountain", "Mine", "IslandWest", "IslandFarmHouse", "IslandFieldOffice"
+                };
+                gmcmApi.AddTextOption(
+                    mod: ModManifest,
+                    getValue: () => m_config.SnapshotRules[0].ScreenshotMapName ?? "",
+                    setValue: (string val) => m_config.SnapshotRules[0].ScreenshotMapName = string.IsNullOrEmpty(val) ? null : val,
+                    name: I18n.Config_MainSettings_ScreenshotMapName_Title,
+                    tooltip: I18n.Config_MainSettings_ScreenshotMapName_Tooltip,
+                    allowedValues: screenshotMapNames,
+                    formatAllowedValue: (val) => val switch
+                    {
+                        "" => Helper.Translation.Get("Config.MainSettings.ScreenshotMapName.CurrentLocation"),
+                        "Farm" => Helper.Translation.Get("Config.Location.Farm.title"),
+                        "FarmHouse" => Helper.Translation.Get("Config.Location.Farmhouse.title"),
+                        "Greenhouse" => Helper.Translation.Get("Config.Location.Greenhouse.title"),
+                        "Beach" => Helper.Translation.Get("Config.Location.Beach.title"),
+                        "FarmCave" => Helper.Translation.Get("Config.Location.FarmCave.title"),
+                        "Cellar" => Helper.Translation.Get("Config.Location.Cellar.title"),
+                        "Desert" => Helper.Translation.Get("Config.Location.Desert.title"),
+                        "ArchaeologyHouse" => Helper.Translation.Get("Config.Location.Museum.title"),
+                        "CommunityCenter" => Helper.Translation.Get("Config.Location.CommunityCenter.title"),
+                        "Town" => Helper.Translation.Get("Config.Location.Town.title"),
+                        "Mountain" => Helper.Translation.Get("Config.Location.Mountain.title"),
+                        "Mine" => Helper.Translation.Get("Config.Location.Mine.title"),
+                        "IslandWest" => Helper.Translation.Get("Config.Location.IslandWest.title"),
+                        "IslandFarmHouse" => Helper.Translation.Get("Config.Location.IslandFarmhouse.title"),
+                        "IslandFieldOffice" => Helper.Translation.Get("Config.Location.IslandFieldOffice.title"),
+                        _ => val
+                    }
+                );
+
                 gmcmApi.AddPageLink(ModManifest, "FileName", I18n.Config_FileName_Header1_Title);
 
                 gmcmApi.AddPageLink(ModManifest, "Days (Seasons and Weekdays)", I18n.Config_Days_Header1_Title);
-                
+
                 // NOTE on Days of the Monthh Code: <-- Search for this text to see explanation on why this is commented out.
                 // gmcmApi.AddPageLink(ModManifest, "Days (Days of the Month)", () => "Days (Days of the Month)");
 
                 gmcmApi.AddPageLink(ModManifest, "Weather", I18n.Config_Weather_Header_Title);
-        
+
                 gmcmApi.AddPageLink(ModManifest, "Location", I18n.Config_Location_Header_Title);
 
                 gmcmApi.AddPage(ModManifest, "FileName");
@@ -602,7 +651,7 @@ namespace DailyScreenshot
                 gmcmApi.AddSectionTitle(ModManifest, I18n.Config_Location_Header_Title, I18n.Config_Location_Header_Tooltip);
                 gmcmApi.AddParagraph(ModManifest, I18n.Config_Location_Description);
                 gmcmApi.AddParagraph(ModManifest, I18n.Config_Location_Description2);
-                
+
                 AddLocationConditionOption(gmcmApi, LocationFlags.Farm);
                 AddLocationConditionOption(gmcmApi, LocationFlags.Farmhouse);
                 AddLocationConditionOption(gmcmApi, LocationFlags.GreenHouse);
@@ -665,7 +714,8 @@ namespace DailyScreenshot
         /// <param name="key"></param>
         private void RunTriggers(List<ModRule> rules, SButton key = SButton.None)
         {
-            if (!m_shouldProcessRules) {
+            if (!m_shouldProcessRules)
+            {
                 return;
             }
             foreach (ModRule rule in rules)
@@ -788,14 +838,15 @@ namespace DailyScreenshot
                 }
             }
 
-            string mapScreenshotPath = Game1.game1.takeMapScreenshot(rule.ZoomLevel, ssPath, () => {
-                    // Restore the player's location after the screenshot is captured
-                    if (savedLocation != null)
-                    {
-                        Game1.currentLocation = savedLocation;
-                        MTrace($"Restored location after screenshot");
-                    }
+            string mapScreenshotPath = Game1.game1.takeMapScreenshot(rule.ZoomLevel, ssPath, () =>
+            {
+                // Restore the player's location after the screenshot is captured
+                if (savedLocation != null)
+                {
+                    Game1.currentLocation = savedLocation;
+                    MTrace($"Restored location after screenshot");
                 }
+            }
             );
             FileInfo mapScreenshot = new FileInfo(Path.Combine(DefaultSSdirectory.FullName, mapScreenshotPath));
             MTrace($"Snapshot saved to {mapScreenshot.FullName}");
@@ -1037,10 +1088,11 @@ namespace DailyScreenshot
             api.AddBoolOption(
                 mod: ModManifest,
                 getValue: () => ModConfigHelper.IsDateConditionEnabled(m_config.SnapshotRules[0].Trigger.Days, dateFlag),
-                setValue: (bool val) => {
+                setValue: (bool val) =>
+                {
                     if (!ModConfigHelper.IsDateConditionAlreadySet(getCurrentDaysPriorToUpdate(dateFlag), dateFlag, val))
                     {
-                       m_config.SnapshotRules[0].Trigger.Days = ModConfigHelper.UpdateDateCondition(m_config.SnapshotRules[0].Trigger.Days, dateFlag, val);
+                        m_config.SnapshotRules[0].Trigger.Days = ModConfigHelper.UpdateDateCondition(m_config.SnapshotRules[0].Trigger.Days, dateFlag, val);
                     }
                 },
                 name: () => Helper.Translation.Get($"Config.Days.{dateFlag}.Title"),
