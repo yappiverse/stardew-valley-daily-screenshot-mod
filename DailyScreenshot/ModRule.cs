@@ -71,6 +71,14 @@ namespace DailyScreenshot
         /// <value>User specified path</value>
         public string Directory { get; set; } = ModConfig.DEFAULT_STRING;
 
+        /// <summary>
+        /// Internal name of the map to screenshot (e.g. "Farm", "Beach").
+        /// When set, the screenshot will capture that map regardless of where
+        /// the player currently is.  Null or empty = screenshot current location.
+        /// </summary>
+        /// <value>Stardew Valley location name, or null/empty for current location</value>
+        public string ScreenshotMapName { get; set; } = null;
+
         [Flags]
         public enum FileNameFlags
         {
