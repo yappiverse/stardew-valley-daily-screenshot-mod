@@ -92,7 +92,7 @@ namespace DailyScreenshot
             PlayerName = 1 << 5,
             Time = 1 << 6,
             UniqueID = 1 << 7,
-            Default = Date | FarmName | GameID | Location
+            Default = Date | FarmName | GameID | Location | Time
 
         }
 
@@ -149,7 +149,7 @@ namespace DailyScreenshot
         /// {Farm Name}-{GameID}/{Location}/{Weather}/{Player Name}-{Date}-{Time}-{Unique ID}
         /// </summary>
         /// <returns>path to the file</returns>
-        public string GetFileName()
+        public string GetFileName(string locationOverride = null)
         {
             if (FileNameFlags.None == FileName)
                 return null;
@@ -170,10 +170,13 @@ namespace DailyScreenshot
                 sep = Path.DirectorySeparatorChar;
             if ('-' == sep)
                 sep = Path.DirectorySeparatorChar;
+            // Use locationOverride (ScreenshotMapName) when set so the path reflects
+            // the captured map rather than the player's current physical location.
+            string locationLabel = locationOverride ?? ModTrigger.GetLocation().ToString();
             if (AddFilenamePart(FileNameFlags.Location,
                                 sep,
                                 ref sb,
-                                ModTrigger.GetLocation()))
+                                locationLabel))
                 sep = Path.DirectorySeparatorChar;
             if ('-' == sep)
                 sep = Path.DirectorySeparatorChar;
