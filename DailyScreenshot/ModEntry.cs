@@ -805,7 +805,7 @@ namespace DailyScreenshot
         /// <param name="rule">Rule to follow for this screenshot</param>
         private void TakeScreenshot(ModRule rule)
         {
-            string ssPath = rule.GetFileName();
+            string ssPath = rule.GetFileName(rule.ScreenshotMapName);
 
             if (m_config.VisualEffects)
             {
